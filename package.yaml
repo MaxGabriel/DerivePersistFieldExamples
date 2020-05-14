@@ -27,6 +27,7 @@ library:
   - persistent
   - text
   - bytestring
+  - th-abstraction
   source-dirs: library
 
 executables:

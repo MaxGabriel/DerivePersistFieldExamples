@@ -11,21 +11,15 @@ import Database.Persist
 import Database.Persist.Sql (PersistFieldSql, sqlType)
 import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as S8
+import Language.Haskell.TH.Datatype
+
+
 
 derivePostgresEnumFast :: Name -> String -> Q [Dec]
 derivePostgresEnumFast typeName postgresType = do
-  reified <- reify typeName
 
-  dec <- case reified of
-    (TyConI dec) -> pure dec
-    x -> fail $ "derivePostgresEnumFast only works on type constructors; got: " <> show x
-
-  constructorNames <- case dec of
-    DataD _cxt _name _tyVarBndrs _mKind constructors _derivingClauses -> do
-       names <- mapM getNormalConstructorNames constructors
-       pure names
-    x -> fail $ "derivePostgresEnumFast only works on simple data types; got: " <> show x
-
+  datatypeInfo <- reifyDatatype typeName
+  constructorNames <- mapM getNormalConstructorName (datatypeCons datatypeInfo)
 
   toPersistValueMatches <- mapM constructorNameToMatch constructorNames
   let toPersistValueExp = LamCaseE toPersistValueMatches
@@ -76,11 +70,10 @@ fromPersistValueBadMatch typeName = do
   -- let fullError = errorCase `AppE` VarE unexpectedPersistValueName
   pure $ Match (VarP unexpectedPersistValueName) (NormalB errorCase) []
 
-getNormalConstructorNames :: Con -> Q Name
-getNormalConstructorNames (NormalC name bangTypes) = case bangTypes of
-  [] -> pure name
-  xs -> fail $ "derivePostgresEnumFast: Only constructors with no arguments are supported (data Foo = X | Y is OK, data Foo = X Int is not). Got: " <> show xs
-getNormalConstructorNames x = fail $ "derivePostgresEnumFast: Only normal constructors are supported. Got: " <> show x
+getNormalConstructorName :: ConstructorInfo -> Q Name
+getNormalConstructorName constructorInfo = case constructorVariant constructorInfo of
+  NormalConstructor -> pure $ constructorName constructorInfo
+  bad -> fail $ "derivePostgresEnumFast expects normal constructors, got: " <> show bad
 
 nameToOccNameString :: Name -> String
 nameToOccNameString (Name (OccName s) _) = s

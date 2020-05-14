@@ -7,12 +7,13 @@
 module Example (main) where
 
 import TH
+import qualified MyEnum as MyEnum
 
 -- | An example function.
 main :: IO ()
 main = return ()
 
 
-data MyEnum = Foo | Bar deriving (Show)
 
-$(derivePostgresEnumFast ''MyEnum "my_enum")
+
+$(derivePostgresEnumFast ''MyEnum.MyEnum "my_enum")
